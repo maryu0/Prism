@@ -10,3 +10,7 @@ CHAT_SESSIONS = "chatSessions"
 CHAT_MESSAGES = "chatMessages"
 INGESTION_JOBS = "ingestionJobs"
 AUDIT_LOGS = "auditLogs"
+
+# Not part of the original 10-collection schema — a staging area for Phase 3's
+# parsed output, consumed by Phase 4 when it writes the actual Neo4j graph.
+PARSED_FILES = "parsedFiles"

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+import redis as sync_redis
 from motor.motor_asyncio import AsyncIOMotorClient
 from neo4j import AsyncDriver, AsyncGraphDatabase
 from redis.asyncio import Redis, from_url
@@ -35,6 +36,15 @@ def get_neo4j_driver() -> AsyncDriver:
 def get_redis_client() -> Redis:
     settings = get_settings()
     return from_url(settings.redis_url, decode_responses=True)
+
+
+@lru_cache
+def get_sync_redis_client() -> sync_redis.Redis:
+    """RQ (the job queue) predates asyncio and expects a synchronous redis-py
+    connection — it's used only by the worker process and by code enqueueing
+    jobs, never inside an async request handler."""
+    settings = get_settings()
+    return sync_redis.from_url(settings.redis_url, decode_responses=False)
 
 
 async def check_mongo() -> bool:

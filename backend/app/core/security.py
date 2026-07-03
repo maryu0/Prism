@@ -1,8 +1,10 @@
 import secrets
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 
 import bcrypt
 import jwt
+from cryptography.fernet import Fernet
 
 from app.core.config import get_settings
 
@@ -39,3 +41,19 @@ def decode_access_token(token: str) -> dict:
 def generate_opaque_token() -> str:
     """Used for refresh tokens and invite tokens — random, unguessable, not a JWT."""
     return secrets.token_urlsafe(32)
+
+
+@lru_cache
+def _fernet() -> Fernet:
+    return Fernet(get_settings().fernet_key.encode("utf-8"))
+
+
+def encrypt_secret(plaintext: str) -> str:
+    """Used for GitHub PATs at rest — Fernet is symmetric encryption (not hashing,
+    which is one-way): we need the plaintext token back later to actually call
+    the GitHub API, so it must be reversible, unlike a password hash."""
+    return _fernet().encrypt(plaintext.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_secret(ciphertext: str) -> str:
+    return _fernet().decrypt(ciphertext.encode("utf-8")).decode("utf-8")

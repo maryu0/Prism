@@ -1,0 +1,157 @@
+{
+  "info": {
+    "_postman_id": "b3f1a2e0-1234-4e56-9abc-prismauth0001",
+    "name": "Prism — Phase 2 Auth",
+    "description": "Register, login, refresh, logout, /me, and invite endpoints against your local backend. Import the companion 'Prism Local' environment alongside this collection and select it before running anything.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Register (Admin Bootstrap)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.workspaceId) { pm.environment.set('workspaceId', body.workspaceId); }",
+              "if (body.userId) { pm.environment.set('userId', body.userId); }",
+              "pm.test('status is 201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@postman-test.com\",\n  \"password\": \"testpass123\",\n  \"name\": \"Postman Admin\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+        "description": "No inviteToken in the body → this bootstraps a brand new workspace + admin user. Saves workspaceId/userId to the environment automatically."
+      }
+    },
+    {
+      "name": "2. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.accessToken) { pm.environment.set('accessToken', body.accessToken); }",
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('got an access token', () => pm.expect(body.accessToken).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@postman-test.com\",\n  \"password\": \"testpass123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+        "description": "Saves accessToken to the environment automatically. Also sets a refresh_token cookie — check the 'Cookies' link under Send to confirm Postman captured it for localhost."
+      }
+    },
+    {
+      "name": "3. Me",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] },
+        "description": "Uses the accessToken saved by the Login request. Should return your user id, email, name, role, workspaceId."
+      }
+    },
+    {
+      "name": "4. Refresh",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.accessToken) { pm.environment.set('accessToken', body.accessToken); }",
+              "pm.test('status is 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": { "mode": "raw", "raw": "" },
+        "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] },
+        "description": "No body needed — Postman sends the stored refresh_token cookie automatically. Rotates the refresh token and issues a new access token (overwrites the saved accessToken). Run this twice in a row and the second call should fail with 401 — that's rotation working correctly."
+      }
+    },
+    {
+      "name": "5. Logout",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] },
+        "description": "Expect 204 No Content. After this, calling Refresh again should 401 — the refresh token was deleted from Redis."
+      }
+    },
+    {
+      "name": "6. Create Invite (Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  const url = new URL(body.inviteUrl);",
+              "  const token = url.searchParams.get('invite');",
+              "  pm.environment.set('inviteToken', token);",
+              "  pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "} else {",
+              "  pm.test('got the expected repo-not-ready error (Phase 3 not built yet)', () => pm.response.to.have.status(400));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"newdev@postman-test.com\",\n  \"role\": \"developer\",\n  \"assignedRepositoryId\": \"{{repoId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/workspaces/{{workspaceId}}/invite",
+          "host": ["{{baseUrl}}"],
+          "path": ["workspaces", "{{workspaceId}}", "invite"]
+        },
+        "description": "This will 400 with 'assignedRepositoryId does not exist' unless repoId in the environment points at a real repository document with status:'ready'. Phase 3 (ingestion) doesn't exist yet, so for now you'd need to insert one manually via a Mongo script — ask Claude if you want that script again. Once it succeeds, inviteToken is saved automatically."
+      }
+    },
+    {
+      "name": "7. Register via Invite",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"newdev@postman-test.com\",\n  \"password\": \"devpass123\",\n  \"name\": \"New Dev\",\n  \"inviteToken\": \"{{inviteToken}}\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+        "description": "Uses the inviteToken saved by request 6. Response should show role and assignedRepositoryId matching what the admin set on the invite — confirms the invitee never chose these themselves. Running this a second time should 400 (invite tokens are single-use)."
+      }
+    }
+  ]
+}

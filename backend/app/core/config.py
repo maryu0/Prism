@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     frontend_origin: str = "http://localhost:5173"
     jwt_secret: str = "dev-secret-change-me"
+    fernet_key: str = ""
 
     mongodb_url: str = ""
     neo4j_uri: str = ""

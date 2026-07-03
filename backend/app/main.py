@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import check_mongo, check_neo4j, check_redis
 from app.modules.auth.router import router as auth_router
+from app.modules.repositories.router import router as repositories_router
 
 settings = get_settings()
 
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(repositories_router, prefix="/api/v1")
 
 
 @app.get("/")
