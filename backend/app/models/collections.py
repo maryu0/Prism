@@ -1,0 +1,12 @@
+"""Central list of Mongo collection names — avoids magic strings scattered across modules."""
+
+USERS = "users"
+WORKSPACES = "workspaces"
+REPOSITORIES = "repositories"
+DEVELOPER_PROFILES = "developerProfiles"
+LEARNING_PATHS = "learningPaths"
+LEARNING_MODULES = "learningModules"
+CHAT_SESSIONS = "chatSessions"
+CHAT_MESSAGES = "chatMessages"
+INGESTION_JOBS = "ingestionJobs"
+AUDIT_LOGS = "auditLogs"
