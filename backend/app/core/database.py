@@ -10,7 +10,10 @@ from app.core.config import get_settings
 @lru_cache
 def get_mongo_client() -> AsyncIOMotorClient:
     settings = get_settings()
-    return AsyncIOMotorClient(settings.mongodb_url)
+    # tz_aware=True: without it, PyMongo returns naive datetimes for BSON dates
+    # (no tzinfo, even though they're stored as UTC), which crashes the moment you
+    # compare them against a timezone-aware datetime.now(UTC) elsewhere in the app.
+    return AsyncIOMotorClient(settings.mongodb_url, tz_aware=True)
 
 
 def get_mongo_db():
