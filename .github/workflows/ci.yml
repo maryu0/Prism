@@ -11,6 +11,18 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # These tests hit the real dev databases (no separate test project exists
+      # yet — a known, documented gap, not an oversight). Pulled from repo
+      # secrets since CI never has a .env file, unlike local dev.
+      ENVIRONMENT: ci
+      MONGODB_URL: ${{ secrets.MONGODB_URL }}
+      NEO4J_URI: ${{ secrets.NEO4J_URI }}
+      NEO4J_USER: ${{ secrets.NEO4J_USER }}
+      NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      FERNET_KEY: ${{ secrets.FERNET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
