@@ -382,16 +382,6 @@ Built with ❤️ for **AI for Bharat by Amazon**
 
 ---
 
-## 📝 License
-
-This project was built for the **AI for Bharat by Amazon** hackathon.
-
----
-
-<div align="center">
-
-**Built with ❤️ for AI for Bharat**
-
 *Prism — See every facet of your codebase* 🔷
 
 </div>
