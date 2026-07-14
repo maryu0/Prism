@@ -109,7 +109,7 @@ async def get_file_components(
                 "type": r["type"],
                 "startLine": r["startLine"],
                 "endLine": r["endLine"],
-                "complexityScore": r["complexityScore"],
+                "complexityScore": r["complexityScore"] or 0,
             }
             for r in records
         ],

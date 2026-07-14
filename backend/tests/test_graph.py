@@ -154,6 +154,69 @@ async def test_get_graph_returns_nodes_and_edges_for_owned_repository(client):
         await _cleanup(tracker, repository_id)
 
 
+async def test_get_file_components_defaults_missing_complexity_score_to_zero(client):
+    """Regression test: CodeComponent nodes written before complexity scoring
+    existed have complexityScore = null in Neo4j. The endpoint must not 500
+    on this stale, real-world data."""
+    tracker = {"emails": [], "repo_ids": []}
+    auth = await _register_and_login(client, tracker)
+
+    db = get_mongo_db()
+    repo_id = ObjectId()
+    tracker["repo_ids"].append(repo_id)
+    await db[c.REPOSITORIES].insert_one(
+        {
+            "_id": repo_id,
+            "workspaceId": ObjectId(auth["workspace_id"]),
+            "githubUrl": "https://github.com/test/stale-repo",
+            "defaultBranch": "main",
+            "accessTokenEnc": "",
+            "status": "ready",
+            "languageStats": {},
+            "locCount": 0,
+        }
+    )
+    repository_id = str(repo_id)
+    file_id = f"{repository_id}:legacy.py"
+
+    try:
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            await session.run(
+                """
+                MERGE (r:Repository {id: $repository_id})
+                MERGE (f:File {id: $file_id})
+                MERGE (r)-[:HAS_FILE]->(f)
+                SET f.path = 'legacy.py', f.language = 'python'
+                MERGE (f)-[:DEFINES]->(comp:CodeComponent {id: $file_id + ':legacy_func'})
+                SET comp.name = 'legacy_func', comp.type = 'function',
+                    comp.startLine = 1, comp.endLine = 3, comp.complexityScore = null
+                """,
+                repository_id=repository_id,
+                file_id=file_id,
+            )
+
+            response = await client.get(
+                f"/api/v1/repositories/{repository_id}/graph/file-components",
+                params={"file_id": file_id},
+                headers=auth["headers"],
+            )
+
+            assert response.status_code == 200
+            body = response.json()
+            assert body["components"] == [
+                {
+                    "name": "legacy_func",
+                    "type": "function",
+                    "startLine": 1,
+                    "endLine": 3,
+                    "complexityScore": 0,
+                }
+            ]
+    finally:
+        await _cleanup(tracker, repository_id)
+
+
 async def test_get_graph_404_for_repository_in_another_workspace(client):
     tracker_owner = {"emails": [], "repo_ids": []}
     tracker_other = {"emails": [], "repo_ids": []}
