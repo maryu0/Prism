@@ -1,9 +1,11 @@
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.database import get_mongo_db
 from app.models import collections as c
 from app.modules.auth.deps import CurrentUser, get_current_user, require_admin
+from app.modules.graph.schemas import FileComponentsResponse, RepositoryGraphResponse
+from app.modules.graph.service import get_file_components, get_repository_graph
 from app.modules.repositories import service
 from app.modules.repositories.schemas import (
     ConnectRepositoryRequest,
@@ -57,6 +59,26 @@ async def get_repository_status(
         repository_id=repository_id, workspace_id=current_user.workspace_id
     )
     return result
+
+
+@router.get("/{repository_id}/graph", response_model=RepositoryGraphResponse)
+async def get_graph(
+    repository_id: str, current_user: CurrentUser = Depends(get_current_user)
+):
+    return await get_repository_graph(
+        repository_id=repository_id, workspace_id=current_user.workspace_id
+    )
+
+
+@router.get("/{repository_id}/graph/file-components", response_model=FileComponentsResponse)
+async def get_graph_file_components(
+    repository_id: str,
+    file_id: str = Query(...),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    return await get_file_components(
+        repository_id=repository_id, workspace_id=current_user.workspace_id, file_id=file_id
+    )
 
 
 @router.post("/{repository_id}/sync", status_code=status.HTTP_202_ACCEPTED)

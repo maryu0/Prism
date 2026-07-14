@@ -1,42 +1,43 @@
-import { useEffect, useState } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { AnimatePresence } from 'motion/react'
+import { AppLayout } from './components/AppLayout'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { PageTransition } from './components/PageTransition'
+import { LoginPage } from './pages/LoginPage'
+import { WorkspacePage } from './pages/WorkspacePage'
+import { RepositoryManagePage } from './pages/RepositoryManagePage'
 
-type HealthResponse = {
-  status: string
-  checks: Record<string, string>
+const queryClient = new QueryClient()
+
+function AnimatedRoutes() {
+  const location = useLocation()
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<WorkspacePage />} />
+            <Route path="/repositories" element={<PageTransition><RepositoryManagePage /></PageTransition>} />
+            <Route path="/search" element={<Navigate to="/?tab=search" replace />} />
+            <Route path="/chat" element={<Navigate to="/?tab=chat" replace />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  )
 }
 
 function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-    fetch(`${apiUrl}/health`)
-      .then((res) => res.json())
-      .then(setHealth)
-      .catch((err) => setError(String(err)))
-  }, [])
-
   return (
-    <main className="min-h-screen bg-white p-8 font-mono text-sm text-neutral-800">
-      <h1 className="mb-4 text-lg font-semibold">Prism — Phase 0 scaffold</h1>
-      {error && <p className="text-red-600">Could not reach backend: {error}</p>}
-      {!error && !health && <p>Checking backend health…</p>}
-      {health && (
-        <div>
-          <p className="mb-2">
-            Overall: <strong>{health.status}</strong>
-          </p>
-          <ul className="list-inside list-disc">
-            {Object.entries(health.checks).map(([service, status]) => (
-              <li key={service}>
-                {service}: {status}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AnimatedRoutes />
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 

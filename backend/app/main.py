@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.database import check_mongo, check_neo4j, check_redis
+from app.core.database import check_chroma, check_mongo, check_neo4j, check_redis
 from app.modules.auth.router import router as auth_router
+from app.modules.chat.router import router as chat_router
+from app.modules.learning_paths.router import router as learning_paths_router
 from app.modules.repositories.router import router as repositories_router
+from app.modules.search.router import router as search_router
 
 settings = get_settings()
 
@@ -20,6 +23,9 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(repositories_router, prefix="/api/v1")
+app.include_router(search_router, prefix="/api/v1")
+app.include_router(chat_router, prefix="/api/v1")
+app.include_router(learning_paths_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -30,7 +36,13 @@ async def root():
 @app.get("/health")
 async def health():
     checks = {}
-    for name, fn in (("mongo", check_mongo), ("neo4j", check_neo4j), ("redis", check_redis)):
+    checks_to_run = (
+        ("mongo", check_mongo),
+        ("neo4j", check_neo4j),
+        ("redis", check_redis),
+        ("chroma", check_chroma),
+    )
+    for name, fn in checks_to_run:
         try:
             await fn()
             checks[name] = "ok"

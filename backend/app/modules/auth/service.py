@@ -50,7 +50,9 @@ async def register_admin(*, email: str, password: str, name: str) -> dict:
     return {"userId": str(user_id), "workspaceId": str(workspace_id)}
 
 
-async def register_via_invite(*, email: str, password: str, name: str, invite_token: str) -> dict:
+async def register_via_invite(
+    *, email: str, password: str, name: str, invite_token: str, experience_level: str
+) -> dict:
     db = get_mongo_db()
     workspace = await db[c.WORKSPACES].find_one({"inviteTokens.token": invite_token})
     invite = None
@@ -91,6 +93,31 @@ async def register_via_invite(*, email: str, password: str, name: str, invite_to
         {"_id": workspace["_id"], "inviteTokens.token": invite_token},
         {"$set": {"inviteTokens.$.used": True}},
     )
+
+    developer_profile_id = ObjectId()
+    await db[c.DEVELOPER_PROFILES].insert_one(
+        {
+            "_id": developer_profile_id,
+            "userId": user_id,
+            "role": invite["role"],
+            "assignedRepositoryId": invite["assignedRepositoryId"],
+            "experienceLevel": experience_level,
+            "skills": [],
+            "startDate": utcnow(),
+        }
+    )
+
+    # A learning path is a nice-to-have on top of a successful registration,
+    # not a precondition for it — a failure here (e.g. the assigned repo's
+    # graph data being incomplete) must never block the user from signing up.
+    # POST /learning-paths/generate exists as a manual retry for this exact case.
+    try:
+        from app.modules.learning_paths.service import generate_learning_path
+
+        await generate_learning_path(developer_profile_id=str(developer_profile_id))
+    except Exception:  # noqa: BLE001
+        pass
+
     return {
         "userId": str(user_id),
         "workspaceId": str(workspace["_id"]),

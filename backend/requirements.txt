@@ -16,3 +16,6 @@ tree-sitter-javascript==0.25.0
 tree-sitter-typescript==0.23.2
 rq==2.10.0
 cryptography==44.0.0
+chromadb==1.5.9
+sentence-transformers==3.3.1
+groq==0.13.1

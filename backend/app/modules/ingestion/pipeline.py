@@ -1,15 +1,19 @@
+import asyncio
+
 from bson import ObjectId
 
 from app.core.database import get_mongo_db
 from app.core.security import decrypt_secret
 from app.models import collections as c
 from app.models.common import utcnow
-from app.modules.ingestion.ast_parser import parse_file
+from app.modules.ingestion.ast_parser import parse_file, resolve_imports
 from app.modules.ingestion.github_connector import (
     cleanup_clone,
     clone_repository,
     discover_source_files,
 )
+from app.modules.ingestion.graph_writer import write_repository_graph
+from app.modules.search.index_writer import index_repository_components
 
 
 async def run_ingestion(*, repository_id: str, job_id: str) -> None:
@@ -43,7 +47,7 @@ async def run_ingestion(*, repository_id: str, job_id: str) -> None:
         loc_count = 0
         components_found = 0
         parse_errors: list[str] = []
-        parsed_docs = []
+        parsed_files = []
 
         for absolute_path in files:
             relative_path = str(absolute_path.relative_to(workdir)).replace("\\", "/")
@@ -56,31 +60,59 @@ async def run_ingestion(*, repository_id: str, job_id: str) -> None:
             language_stats[parsed.language] = language_stats.get(parsed.language, 0) + 1
             components_found += len(parsed.components)
             loc_count += absolute_path.read_text(encoding="utf-8", errors="ignore").count("\n") + 1
+            parsed_files.append(parsed)
 
-            parsed_docs.append(
-                {
-                    "repositoryId": ObjectId(repository_id),
-                    "jobId": ObjectId(job_id),
-                    "filePath": parsed.file_path,
-                    "language": parsed.language,
-                    "imports": parsed.imports,
-                    "components": [
-                        {
-                            "name": comp.name,
-                            "type": comp.type,
-                            "startLine": comp.start_line,
-                            "endLine": comp.end_line,
-                        }
-                        for comp in parsed.components
-                    ],
-                }
-            )
+        # Import resolution needs the complete set of in-repo file paths to
+        # match targets against, so it can only run once every file has been
+        # parsed, not incrementally inside the loop above.
+        all_relative_paths = {p.file_path for p in parsed_files}
+        resolved_imports = resolve_imports(parsed_files, all_relative_paths)
+
+        parsed_docs = [
+            {
+                "repositoryId": ObjectId(repository_id),
+                "jobId": ObjectId(job_id),
+                "filePath": parsed.file_path,
+                "language": parsed.language,
+                "imports": parsed.imports,
+                "resolvedImports": resolved_imports.get(parsed.file_path, []),
+                "components": [
+                    {
+                        "name": comp.name,
+                        "type": comp.type,
+                        "startLine": comp.start_line,
+                        "endLine": comp.end_line,
+                        # Lines-of-code proxy for complexity — cheap, transparent,
+                        # and derivable from data already captured; a richer
+                        # branch-counting metric is a documented future upgrade.
+                        "complexityScore": comp.end_line - comp.start_line + 1,
+                    }
+                    for comp in parsed.components
+                ],
+            }
+            for parsed in parsed_files
+        ]
 
         # Replace, not append: a re-sync should reflect the current state of
         # the repo, not accumulate stale entries from a previous sync.
         await db[c.PARSED_FILES].delete_many({"repositoryId": ObjectId(repository_id)})
         if parsed_docs:
             await db[c.PARSED_FILES].insert_many(parsed_docs)
+
+        await write_repository_graph(
+            repository_id=repository_id,
+            github_url=repo["githubUrl"],
+            parsed_docs=parsed_docs,
+        )
+
+        # Chroma + sentence-transformers are synchronous, CPU-bound APIs (no
+        # network I/O to await) — running via to_thread keeps this coroutine
+        # from blocking the worker's event loop for the embedding duration.
+        await asyncio.to_thread(
+            index_repository_components,
+            repository_id=repository_id,
+            parsed_docs=parsed_docs,
+        )
 
         stats = {
             "filesDiscovered": len(files),

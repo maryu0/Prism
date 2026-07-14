@@ -271,6 +271,7 @@ async def test_register_via_invite_assigns_role_and_repo_not_self_reported(clien
             "password": "devpass123",
             "name": "New Dev",
             "inviteToken": invite_token,
+            "experienceLevel": "mid",
         },
     )
 
@@ -287,8 +288,16 @@ async def test_register_via_invite_assigns_role_and_repo_not_self_reported(clien
             "password": "devpass123",
             "name": "New Dev",
             "inviteToken": invite_token,
+            "experienceLevel": "mid",
         },
     )
     assert reuse.status_code == 400
+
+    db = get_mongo_db()
+    await db[c.DEVELOPER_PROFILES].delete_many({"assignedRepositoryId": repo_id})
+    path = await db[c.LEARNING_PATHS].find_one({"repositoryId": repo_id})
+    if path:
+        await db[c.LEARNING_MODULES].delete_many({"pathId": path["_id"]})
+        await db[c.LEARNING_PATHS].delete_one({"_id": path["_id"]})
 
     await cleanup_test_data(tracker)

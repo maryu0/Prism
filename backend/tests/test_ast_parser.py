@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.modules.ingestion.ast_parser import parse_file
+from app.modules.ingestion.ast_parser import ParsedFile, parse_file, resolve_imports
 
 
 def test_parses_python_classes_functions_and_imports(tmp_path: Path):
@@ -95,3 +95,130 @@ def test_binary_file_does_not_crash_the_parser(tmp_path: Path):
     # real requirement is just that this never throws and always returns a
     # ParsedFile, which the ingestion pipeline can then reason about.
     assert parsed.file_path == "sample.py"
+
+
+def test_resolve_imports_python_absolute():
+    files = [
+        ParsedFile(
+            file_path="app/main.py",
+            language="python",
+            imports=["from app.core import config"],
+        )
+    ]
+    all_paths = {"app/main.py", "app/core.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"app/main.py": ["app/core.py"]}
+
+
+def test_resolve_imports_python_relative_same_package():
+    files = [
+        ParsedFile(
+            file_path="app/modules/auth/router.py",
+            language="python",
+            imports=["from . import service"],
+        )
+    ]
+    all_paths = {"app/modules/auth/router.py", "app/modules/auth/service.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"app/modules/auth/router.py": ["app/modules/auth/service.py"]}
+
+
+def test_resolve_imports_python_relative_parent_package():
+    # From app/modules/auth/router.py (package app.modules.auth), one dot is
+    # the current package (app.modules.auth), so two dots is its parent
+    # (app.modules) — "from ..core import database" resolves the *module*
+    # `core` relative to app.modules, i.e. app/modules/core.py.
+    files = [
+        ParsedFile(
+            file_path="app/modules/auth/router.py",
+            language="python",
+            imports=["from ..core import database"],
+        )
+    ]
+    all_paths = {"app/modules/auth/router.py", "app/modules/core.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"app/modules/auth/router.py": ["app/modules/core.py"]}
+
+
+def test_resolve_imports_python_absolute_with_non_root_package_root():
+    # Real-world layout: the Python package root is backend/, not the repo
+    # root — "from app.core.config import ..." must resolve relative to
+    # backend/, not be assumed relative to the repo root.
+    files = [
+        ParsedFile(
+            file_path="backend/app/main.py",
+            language="python",
+            imports=["from app.core.config import get_settings"],
+        )
+    ]
+    all_paths = {"backend/app/main.py", "backend/app/core/config.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"backend/app/main.py": ["backend/app/core/config.py"]}
+
+
+def test_resolve_imports_python_package_init():
+    files = [
+        ParsedFile(
+            file_path="app/main.py",
+            language="python",
+            imports=["import app.modules"],
+        )
+    ]
+    all_paths = {"app/main.py", "app/modules/__init__.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"app/main.py": ["app/modules/__init__.py"]}
+
+
+def test_resolve_imports_drops_external_packages():
+    files = [
+        ParsedFile(
+            file_path="app/main.py",
+            language="python",
+            imports=["import os", "from collections import OrderedDict"],
+        )
+    ]
+    all_paths = {"app/main.py"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {}
+
+
+def test_resolve_imports_js_relative():
+    files = [
+        ParsedFile(
+            file_path="src/pages/LoginPage.tsx",
+            language="tsx",
+            imports=["import { login } from '../lib/endpoints'"],
+        )
+    ]
+    all_paths = {"src/pages/LoginPage.tsx", "src/lib/endpoints.ts"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {"src/pages/LoginPage.tsx": ["src/lib/endpoints.ts"]}
+
+
+def test_resolve_imports_js_drops_bare_specifier():
+    files = [
+        ParsedFile(
+            file_path="src/App.tsx",
+            language="tsx",
+            imports=["import React from 'react'"],
+        )
+    ]
+    all_paths = {"src/App.tsx"}
+
+    result = resolve_imports(files, all_paths)
+
+    assert result == {}

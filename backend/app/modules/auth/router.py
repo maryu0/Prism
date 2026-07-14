@@ -37,11 +37,17 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest):
     if body.invite_token:
+        if body.experience_level is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "experienceLevel is required when registering via invite",
+            )
         return await service.register_via_invite(
             email=body.email,
             password=body.password,
             name=body.name,
             invite_token=body.invite_token,
+            experience_level=body.experience_level,
         )
     return await service.register_admin(email=body.email, password=body.password, name=body.name)
 
