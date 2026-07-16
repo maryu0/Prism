@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react'
 import { askQuestion } from '../lib/endpoints'
+import { useWorkspaceIntentStore } from '../lib/workspaceIntentStore'
 import type { Citation } from '../lib/types'
 import { TypingIndicator } from '../components/TypingIndicator'
 
@@ -28,6 +29,11 @@ export function ChatPanel() {
     glowX.set(e.clientX - rect.left)
     glowY.set(e.clientY - rect.top)
   }
+
+  useEffect(() => {
+    const prefill = useWorkspaceIntentStore.getState().consumePrefillQuestion()
+    if (prefill) setQuestion(prefill)
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -29,6 +29,7 @@ class LearningModuleResponse(BaseModel):
     status: str
     estimated_minutes: int = Field(alias="estimatedMinutes")
     completed_at: datetime | None = Field(default=None, alias="completedAt")
+    unlocked_at: datetime | None = Field(default=None, alias="unlockedAt")
 
 
 class GeneratePathRequest(BaseModel):

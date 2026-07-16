@@ -4,6 +4,7 @@ import { useAuthStore } from '../../lib/authStore'
 import { logout } from '../../lib/endpoints'
 import { Magnetic } from '../Magnetic'
 import { SidebarRepoList } from './SidebarRepoList'
+import { NotificationBell } from './NotificationBell'
 
 function PrismMark() {
   return (
@@ -96,10 +97,11 @@ export function Sidebar() {
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-800 text-xs font-medium text-[var(--brand-text)]">
               {user.name.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0 leading-tight">
+            <div className="min-w-0 flex-1 leading-tight">
               <p className="truncate text-sm text-neutral-300">{user.name}</p>
               <p className="text-[11px] uppercase tracking-wide text-neutral-600">{user.role}</p>
             </div>
+            <NotificationBell />
           </div>
         )}
         <Magnetic strength={0.15}>

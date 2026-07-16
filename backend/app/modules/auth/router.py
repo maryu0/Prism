@@ -86,12 +86,19 @@ async def me(current_user: CurrentUser = Depends(get_current_user)):
     user = await db[c.USERS].find_one({"_id": ObjectId(current_user.user_id)})
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    assigned_repository_id = None
+    profile = await db[c.DEVELOPER_PROFILES].find_one({"userId": user["_id"]})
+    if profile:
+        assigned_repository_id = str(profile["assignedRepositoryId"])
+
     return {
         "id": str(user["_id"]),
         "email": user["email"],
         "name": user["name"],
         "role": user["role"],
         "workspaceId": str(user["workspaceId"]),
+        "assignedRepositoryId": assigned_repository_id,
     }
 
 
@@ -109,6 +116,7 @@ async def invite(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Cannot invite to another workspace")
     result = await service.create_invite(
         workspace_id=workspace_id,
+        actor_id=current_user.user_id,
         email=body.email,
         role=body.role,
         assigned_repository_id=body.assigned_repository_id,

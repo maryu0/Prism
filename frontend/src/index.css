@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Alkera-matched olive brand palette (dark mode) */
@@ -32,4 +32,26 @@ h1, h2, h3, .font-display {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* React Flow v12 themes Controls/MiniMap via CSS custom properties, not
+   plain overridable classes — ship a light-theme default that must be
+   re-pointed at the app's dark surface instead of the library's white panel. */
+.react-flow {
+  --xy-controls-button-background-color: #171717;
+  --xy-controls-button-background-color-hover: #262626;
+  --xy-controls-button-border-color: #262626;
+  --xy-controls-button-color: #a3a3a3;
+  --xy-controls-button-color-hover: #ffffff;
+  --xy-controls-box-shadow: none;
+}
+
+.react-flow__controls {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #262626;
+}
+
+.react-flow__attribution {
+  display: none;
 }

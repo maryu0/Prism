@@ -1,18 +1,33 @@
+import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { WorkspaceTabs, type WorkspaceTab } from '../components/layout/WorkspaceTabs'
+import { useActiveRepoStore } from '../lib/activeRepoStore'
 import { SearchPanel } from './SearchPanel'
 import { ChatPanel } from './ChatPanel'
 import { LineageGraphPanel } from './LineageGraphPanel'
+import { LearningPathPanel } from './LearningPathPanel'
+import { AnalyticsPanel } from './AnalyticsPanel'
 
-const VALID_TABS: WorkspaceTab[] = ['search', 'chat', 'graph']
+const VALID_TABS: WorkspaceTab[] = ['search', 'chat', 'graph', 'learning', 'progress']
 
 export function WorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
+  const repoParam = searchParams.get('repo')
+  const setActiveRepositoryId = useActiveRepoStore((s) => s.setActiveRepositoryId)
   const activeTab: WorkspaceTab = VALID_TABS.includes(tabParam as WorkspaceTab)
     ? (tabParam as WorkspaceTab)
     : 'search'
+
+  useEffect(() => {
+    if (repoParam) {
+      setActiveRepositoryId(repoParam)
+      searchParams.delete('repo')
+      setSearchParams(searchParams, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoParam])
 
   function handleTabChange(tab: WorkspaceTab) {
     setSearchParams({ tab })
@@ -33,6 +48,8 @@ export function WorkspacePage() {
             {activeTab === 'search' && <SearchPanel />}
             {activeTab === 'chat' && <ChatPanel />}
             {activeTab === 'graph' && <LineageGraphPanel />}
+            {activeTab === 'learning' && <LearningPathPanel />}
+            {activeTab === 'progress' && <AnalyticsPanel />}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -5,6 +5,7 @@ import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PageTransition } from './components/PageTransition'
 import { LoginPage } from './pages/LoginPage'
+import { SignupPage } from './pages/SignupPage'
 import { WorkspacePage } from './pages/WorkspacePage'
 import { RepositoryManagePage } from './pages/RepositoryManagePage'
 
@@ -17,6 +18,7 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+        <Route path="/signup" element={<PageTransition><SignupPage /></PageTransition>} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<WorkspacePage />} />

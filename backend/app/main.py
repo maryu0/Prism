@@ -3,9 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import check_chroma, check_mongo, check_neo4j, check_redis
+from app.modules.analytics.router import router as analytics_router
+from app.modules.audit_log.router import router as audit_log_router
 from app.modules.auth.router import router as auth_router
 from app.modules.chat.router import router as chat_router
 from app.modules.learning_paths.router import router as learning_paths_router
+from app.modules.notifications.router import router as notifications_router
 from app.modules.repositories.router import router as repositories_router
 from app.modules.search.router import router as search_router
 
@@ -26,6 +29,9 @@ app.include_router(repositories_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(learning_paths_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
+app.include_router(audit_log_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
 
 
 @app.get("/")

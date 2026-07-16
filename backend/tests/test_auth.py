@@ -138,6 +138,80 @@ async def test_me_without_token_rejected(client):
     assert response.status_code == 401
 
 
+async def test_me_includes_assigned_repository_id(client, tracker):
+    admin_email = unique_email("me-repo-admin")
+    tracker["emails"].append(admin_email)
+    register = await client.post(
+        "/api/v1/auth/register",
+        json={"email": admin_email, "password": "testpass123", "name": "Me Repo Admin"},
+    )
+    workspace_id = register.json()["workspaceId"]
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": admin_email, "password": "testpass123"}
+    )
+    admin_headers = {"Authorization": f"Bearer {login.json()['accessToken']}"}
+
+    # Admin has no DeveloperProfile — assignedRepositoryId must be null, not missing/erroring.
+    admin_me = await client.get("/api/v1/auth/me", headers=admin_headers)
+    assert admin_me.status_code == 200
+    assert admin_me.json()["assignedRepositoryId"] is None
+
+    db = get_mongo_db()
+    repo_id = ObjectId()
+    tracker["repo_ids"].append(repo_id)
+    await db[c.REPOSITORIES].insert_one(
+        {
+            "_id": repo_id,
+            "workspaceId": ObjectId(workspace_id),
+            "githubUrl": "https://github.com/test/me-repo",
+            "defaultBranch": "main",
+            "accessTokenEnc": "test",
+            "status": "ready",
+            "languageStats": {},
+            "locCount": 0,
+        }
+    )
+
+    invitee_email = unique_email("me-repo-dev")
+    tracker["emails"].append(invitee_email)
+    invite = await client.post(
+        f"/api/v1/workspaces/{workspace_id}/invite",
+        json={
+            "email": invitee_email,
+            "role": "developer",
+            "assignedRepositoryId": str(repo_id),
+        },
+        headers=admin_headers,
+    )
+    invite_token = invite.json()["inviteUrl"].split("invite=")[1]
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": invitee_email,
+            "password": "devpass123",
+            "name": "Me Repo Dev",
+            "inviteToken": invite_token,
+            "experienceLevel": "mid",
+        },
+    )
+    dev_login = await client.post(
+        "/api/v1/auth/login", json={"email": invitee_email, "password": "devpass123"}
+    )
+    dev_headers = {"Authorization": f"Bearer {dev_login.json()['accessToken']}"}
+
+    dev_me = await client.get("/api/v1/auth/me", headers=dev_headers)
+    assert dev_me.status_code == 200
+    assert dev_me.json()["assignedRepositoryId"] == str(repo_id)
+
+    await db[c.DEVELOPER_PROFILES].delete_many({"assignedRepositoryId": repo_id})
+    path = await db[c.LEARNING_PATHS].find_one({"repositoryId": repo_id})
+    if path:
+        await db[c.LEARNING_MODULES].delete_many({"pathId": path["_id"]})
+        await db[c.LEARNING_PATHS].delete_one({"_id": path["_id"]})
+
+    await cleanup_test_data(tracker)
+
+
 async def test_refresh_token_rotates_and_old_token_dies(client, tracker):
     email = unique_email("refresh")
     tracker["emails"].append(email)

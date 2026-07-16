@@ -6,6 +6,7 @@ export type MeResponse = {
   name: string
   role: Role
   workspaceId: string
+  assignedRepositoryId: string | null
 }
 
 export type RepositoryStatus = 'pending' | 'syncing' | 'ready' | 'error'
@@ -84,4 +85,107 @@ export type FileComponent = {
 export type FileComponentsResponse = {
   fileId: string
   components: FileComponent[]
+}
+
+export type MyProgress = {
+  pathId: string
+  modulesDone: number
+  modulesTotal: number
+  percentComplete: number
+  minutesSpent: number
+  minutesRemaining: number
+  lastCompletedAt: string | null
+}
+
+export type TeamMemberProgress = {
+  userId: string
+  name: string
+  role: string
+  repositoryId: string
+  modulesDone: number
+  modulesTotal: number
+  percentComplete: number
+  lastCompletedAt: string | null
+  stalled: boolean
+}
+
+export type TeamProgressResponse = {
+  members: TeamMemberProgress[]
+}
+
+export type InviteResponse = {
+  inviteUrl: string
+  expiresAt: string
+}
+
+export type LearningPathStatus = 'active' | 'completed' | 'abandoned'
+
+export type LearningPath = {
+  id: string
+  developerProfileId: string
+  repositoryId: string
+  status: LearningPathStatus
+  estimatedDurationMinutes: number
+  adaptedCount: number
+  generatedAt: string
+}
+
+export type LearningModuleStatus = 'locked' | 'available' | 'done'
+
+export type LearningModule = {
+  id: string
+  pathId: string
+  title: string
+  description: string
+  type: string
+  targetEntityIds: string[]
+  order: number
+  prerequisites: string[]
+  status: LearningModuleStatus
+  estimatedMinutes: number
+  completedAt: string | null
+  unlockedAt: string | null
+}
+
+export type CompleteModuleResponse = {
+  module: LearningModule
+  unlockedModuleIds: string[]
+}
+
+export type AuditLogEntry = {
+  actorId: string
+  action: string
+  targetType: string
+  targetId: string
+  timestamp: string
+}
+
+export type AuditLogResponse = {
+  entries: AuditLogEntry[]
+}
+
+export type KnowledgeGap = {
+  repositoryId: string
+  moduleTitle: string
+  stalledDeveloperCount: number
+  avgDaysStalled: number
+}
+
+export type KnowledgeGapsResponse = {
+  gaps: KnowledgeGap[]
+}
+
+export type NotificationType = 'module_completed' | 'path_completed' | 'knowledge_gap'
+
+export type Notification = {
+  id: string
+  type: NotificationType
+  message: string
+  read: boolean
+  createdAt: string
+}
+
+export type NotificationListResponse = {
+  notifications: Notification[]
+  unreadCount: number
 }

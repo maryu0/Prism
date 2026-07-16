@@ -3,6 +3,7 @@ from datetime import timedelta
 from bson import ObjectId
 from fastapi import HTTPException, status
 
+from app.core.audit import log_action
 from app.core.database import get_mongo_db, get_redis_client
 from app.core.security import (
     create_access_token,
@@ -118,6 +119,14 @@ async def register_via_invite(
     except Exception:  # noqa: BLE001
         pass
 
+    await log_action(
+        workspace_id=str(workspace["_id"]),
+        actor_id=str(user_id),
+        action="user.registered_via_invite",
+        target_type="user",
+        target_id=str(user_id),
+    )
+
     return {
         "userId": str(user_id),
         "workspaceId": str(workspace["_id"]),
@@ -190,7 +199,7 @@ async def logout(*, refresh_token: str | None) -> None:
 
 
 async def create_invite(
-    *, workspace_id: str, email: str, role: str, assigned_repository_id: str
+    *, workspace_id: str, actor_id: str, email: str, role: str, assigned_repository_id: str
 ) -> dict:
     db = get_mongo_db()
 
@@ -232,4 +241,13 @@ async def create_invite(
             }
         },
     )
+
+    await log_action(
+        workspace_id=workspace_id,
+        actor_id=actor_id,
+        action="invite.created",
+        target_type="invite",
+        target_id=email,
+    )
+
     return {"token": token, "expiresAt": expires_at}

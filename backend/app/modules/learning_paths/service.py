@@ -5,6 +5,7 @@ from app.core.database import get_mongo_db
 from app.models import collections as c
 from app.models.common import utcnow
 from app.modules.learning_paths.path_generator import build_modules, fetch_candidate_files
+from app.modules.notifications.service import create_notification_for_admins
 
 
 def _to_response(doc: dict) -> dict:
@@ -63,6 +64,7 @@ async def generate_learning_path(*, developer_profile_id: str) -> dict:
     # in prerequisites (which reference other modules' _ids) and unlock the
     # modules that have none.
     module_ids = [ObjectId() for _ in generated]
+    now = utcnow()
     docs = [
         {
             "_id": module_ids[i],
@@ -76,6 +78,7 @@ async def generate_learning_path(*, developer_profile_id: str) -> dict:
             "status": "available" if not m.prerequisite_indices else "locked",
             "estimatedMinutes": m.estimated_minutes,
             "completedAt": None,
+            "unlockedAt": now if not m.prerequisite_indices else None,
         }
         for i, m in enumerate(generated)
     ]
@@ -131,9 +134,21 @@ async def complete_module(*, module_id: str, user_id: str) -> dict:
     for m in all_modules:
         if m["status"] == "locked" and all(p in done_ids for p in m["prerequisites"]):
             await db[c.LEARNING_MODULES].update_one(
-                {"_id": m["_id"]}, {"$set": {"status": "available"}}
+                {"_id": m["_id"]}, {"$set": {"status": "available", "unlockedAt": utcnow()}}
             )
             unlocked_ids.append(str(m["_id"]))
+
+    all_done = all(
+        m["_id"] == module["_id"] or m["status"] == "done" for m in all_modules
+    )
+    if all_done:
+        user = await db[c.USERS].find_one({"_id": ObjectId(user_id)})
+        if user:
+            await create_notification_for_admins(
+                workspace_id=str(user["workspaceId"]),
+                type="path_completed",
+                message=f"{user['name']} completed their learning path.",
+            )
 
     updated_module = await db[c.LEARNING_MODULES].find_one({"_id": module["_id"]})
     return {"module": _to_response(updated_module), "unlockedModuleIds": unlocked_ids}

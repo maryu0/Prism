@@ -1,11 +1,13 @@
 import { motion } from 'motion/react'
 
-export type WorkspaceTab = 'search' | 'chat' | 'graph'
+export type WorkspaceTab = 'search' | 'chat' | 'graph' | 'learning' | 'progress'
 
 const TABS: { id: WorkspaceTab; label: string }[] = [
   { id: 'search', label: 'Search' },
   { id: 'chat', label: 'Ask AI' },
   { id: 'graph', label: 'Lineage Graph' },
+  { id: 'learning', label: 'Learning Path' },
+  { id: 'progress', label: 'Progress' },
 ]
 
 type WorkspaceTabsProps = {

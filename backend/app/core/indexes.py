@@ -41,6 +41,11 @@ async def create_mongo_indexes() -> dict[str, list[str]]:
                 [("workspaceId", ASCENDING), ("timestamp", ASCENDING)], name="by_workspace_time"
             ),
         ],
+        c.NOTIFICATIONS: [
+            IndexModel(
+                [("userId", ASCENDING), ("createdAt", ASCENDING)], name="by_user_created"
+            ),
+        ],
     }
 
     created: dict[str, list[str]] = {}

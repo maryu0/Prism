@@ -53,3 +53,4 @@ class MeResponse(BaseModel):
     name: str
     role: Role
     workspace_id: str = Field(alias="workspaceId")
+    assigned_repository_id: str | None = Field(default=None, alias="assignedRepositoryId")
